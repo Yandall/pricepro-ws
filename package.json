@@ -1,0 +1,19 @@
+{
+  "name": "pricepro-ws",
+  "version": "0.1.0",
+  "description": "Headless browser service to make webscraping for PricePro",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chrome-aws-lambda": "^10.1.0",
+    "puppeteer-core": "^10.4.0"
+  },
+  "devDependencies": {
+    "aws-lambda": "^1.0.7"
+  }
+}

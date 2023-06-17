@@ -1,2 +1,2 @@
-# pricepro-ws
-Headless browser service to make webscraping for PricePro
+# Pricepro-ws
+Headless browser lambda function to make webscraping for PricePro
