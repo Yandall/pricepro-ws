@@ -1,7 +1,7 @@
 /**
  *
  * @param {import("./index").ReqBody} reqBody
- * @returns {boolean}
+ * @throws
  */
 exports.assertReqBody = (reqBody) => {
   if (typeof reqBody === "undefined") throw new Error("Body undefined");
