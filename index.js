@@ -8,6 +8,7 @@ const { assertReqBody } = require("./utils");
  * @property {string} waitForSelector
  * @property {string} selectBody
  * @property {MatchRules} [matchRules]
+ * @property {string[]} [selectReturnObject]
  * @property {number} [maxWait]
  * @property {number} [sleepTime]
  * @property {"json" | "html"} returnType
@@ -94,7 +95,22 @@ exports.handler = async (event, _) => {
             }
           }
           if (!waited) return false;
-          bodyReponse = await response.text();
+          if (
+            Array.isArray(payload.selectReturnObject) &&
+            payload.selectReturnObject.length > 0
+          ) {
+            try {
+              bodyReponse = await response.json();
+              let returnedObject = bodyReponse;
+              for (const index of payload.selectReturnObject) {
+                returnedObject = returnedObject[index];
+              }
+              bodyReponse = JSON.stringify(returnedObject);
+            } catch (error) {
+              console.error(error);
+              bodyReponse = responseData;
+            }
+          } else bodyReponse = await response.text();
           return true;
         },
         { timeout: payload.maxWait }

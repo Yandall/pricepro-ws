@@ -27,6 +27,12 @@ exports.assertReqBody = (reqBody) => {
       throw new Error(
         `"matchRules.requestPostData" and "matchRules.url" should be arrays `
       );
+    if (
+      typeof reqBody.selectReturnObject !== "undefined" &&
+      !Array.isArray(reqBody.selectReturnObject)
+    )
+      throw new Error(`"selectReturnObject" should be an array`);
+
     let validRuleFunctions = true;
     if (reqBody.matchRules.url)
       validRuleFunctions =

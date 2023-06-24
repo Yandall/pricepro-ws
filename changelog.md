@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.1
+
+- Allow indexing the result value if `returnType` equals "json" using array `selectReturnObject`
+
 ## v0.2.0
 
 - Intercept browser requests and return its response:
