@@ -4,6 +4,7 @@
 
 - Changed how requests are being intercepted. Now `page.on("response")` is used
 - Added timer to send error when function is about to timeout
+- Allow matching request by response value using `matchRules.responseData`
 
 ## v0.2.1
 

@@ -22,7 +22,8 @@ exports.assertReqBody = (reqBody) => {
       throw new Error("invalid matchRules");
     if (
       typeof reqBody.matchRules.url === "undefined" &&
-      typeof reqBody.matchRules.requestPostData === "undefined"
+      typeof reqBody.matchRules.requestPostData === "undefined" &&
+      typeof reqBody.matchRules.responseData === "undefined"
     )
       throw new Error(
         `"matchRules.requestPostData" and "matchRules.url" should be arrays `
@@ -44,6 +45,12 @@ exports.assertReqBody = (reqBody) => {
       validRuleFunctions =
         validRuleFunctions &&
         reqBody.matchRules.requestPostData.every((v) =>
+          ["includes", "endsWith", "startsWith"].includes(Object.keys(v)[0])
+        );
+    if (reqBody.matchRules.responseData)
+      validRuleFunctions =
+        validRuleFunctions &&
+        reqBody.matchRules.responseData.every((v) =>
           ["includes", "endsWith", "startsWith"].includes(Object.keys(v)[0])
         );
     if (!validRuleFunctions) throw new Error("invalid match rule functions");

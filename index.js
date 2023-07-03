@@ -20,6 +20,8 @@ const { assertReqBody } = require("./utils");
  * @type {object}
  * @property {Array<Object.<string,string>>} [url]
  * @property {Array<Object.<string,string>>} [requestPostData]
+ * @property {Array<Object.<string,string>>} [responseData]
+ *
  */
 
 /**
@@ -100,6 +102,17 @@ exports.handler = async (event, context, callback) => {
             try {
               waited =
                 waited && response.request().postData()[func](rule[func]);
+            } catch {
+              waited = false;
+            }
+          }
+        }
+        if (matchRules.responseData) {
+          for (const rule of matchRules.responseData) {
+            const func = Object.keys(rule)[0];
+            try {
+              const text = await response.text();
+              waited = waited && text[func](rule[func]);
             } catch {
               waited = false;
             }
