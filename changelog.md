@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.2
+
+- Changed how requests are being intercepted. Now `page.on("response")` is used
+- Added timer to send error when function is about to timeout
+
 ## v0.2.1
 
 - Allow indexing the result value if `returnType` equals "json" using array `selectReturnObject`
