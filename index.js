@@ -42,7 +42,7 @@ exports.handler = async (event, context, callback) => {
     context.callbackWaitsForEmptyEventLoop = false;
     callback(null, {
       statusCode: 408,
-      body: `{ "error": "Timeout due to maxWait being reached" }`,
+      body: `{ "error": "Timeout due to time execution being reached" }`,
       headers: { "Content-Type": "application/json" },
     });
   }, context.getRemainingTimeInMillis() - 1 * 1000);
