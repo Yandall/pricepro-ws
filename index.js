@@ -35,15 +35,24 @@ const { assertReqBody } = require("./utils");
 /**
  * @type {import("aws-lambda").Handler<EventType, ReturnType>}=
  */
-exports.handler = async (event, _) => {
+exports.handler = async (event, context, callback) => {
+  const timer = setTimeout(() => {
+    context.callbackWaitsForEmptyEventLoop = false;
+    callback(null, {
+      statusCode: 408,
+      body: `{ "error": "Timeout due to maxWait being reached" }`,
+      headers: { "Content-Type": "application/json" },
+    });
+  }, context.getRemainingTimeInMillis() - 1 * 1000);
   /**
    * @type {ReqBody}
    */
   let payload = JSON.parse(event.body);
-  let bodyReponse;
+  let bodyResponse;
   let browser;
   try {
     assertReqBody(payload);
+
     browser = await chromium.puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
@@ -52,11 +61,14 @@ exports.handler = async (event, _) => {
       ignoreHTTPSErrors: true,
     });
     const page = await browser.newPage();
+    page.setUserAgent(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    );
 
     await page.setRequestInterception(true);
 
     // Allow script, xhr and fetch request and block everything else
-    page.on("request", (req) => {
+    page.on("request", async (req) => {
       if (
         !["document", "xhr", "fetch", "script"].includes(req.resourceType())
       ) {
@@ -65,56 +77,63 @@ exports.handler = async (event, _) => {
       req.continue();
     });
 
+    if (payload.returnType === "json") {
+      //Start request interceptor before navigating to url
+      page.on("response", async (response) => {
+        if (!["fetch", "xhr"].includes(response.request().resourceType()))
+          return;
+        let matchRules = payload.matchRules;
+        let waited = true;
+        if (matchRules.url) {
+          for (const rule of matchRules.url) {
+            const func = Object.keys(rule)[0];
+            try {
+              waited = waited && response.url()[func](rule[func]);
+            } catch {
+              return;
+            }
+          }
+        }
+        if (matchRules.requestPostData) {
+          for (const rule of matchRules.requestPostData) {
+            const func = Object.keys(rule)[0];
+            try {
+              waited =
+                waited && response.request().postData()[func](rule[func]);
+            } catch {
+              waited = false;
+            }
+          }
+        }
+        if (!waited) return;
+        if (
+          Array.isArray(payload.selectReturnObject) &&
+          payload.selectReturnObject.length > 0
+        ) {
+          try {
+            bodyResponse = await response.json();
+            let returnedObject = bodyResponse;
+            for (const index of payload.selectReturnObject) {
+              returnedObject = returnedObject[index];
+            }
+            bodyResponse = JSON.stringify(returnedObject);
+          } catch (error) {
+            console.error(error);
+            bodyResponse = await response.text();
+          }
+        } else bodyResponse = await response.text();
+      });
+    }
     await page.goto(payload.url);
     if (payload.returnType === "json") {
-      await page.waitForResponse(
-        async (response) => {
-          if (!["fetch", "xhr"].includes(response.request().resourceType()))
-            return false;
-          let matchRules = payload.matchRules;
-          let waited = true;
-          if (matchRules.url) {
-            for (const rule of matchRules.url) {
-              const func = Object.keys(rule)[0];
-              try {
-                waited = waited && response.url()[func](rule[func]);
-              } catch {
-                return false;
-              }
-            }
-          }
-          if (matchRules.requestPostData) {
-            for (const rule of matchRules.requestPostData) {
-              const func = Object.keys(rule)[0];
-              try {
-                waited =
-                  waited && response.request().postData()[func](rule[func]);
-              } catch {
-                waited = false;
-              }
-            }
-          }
-          if (!waited) return false;
-          if (
-            Array.isArray(payload.selectReturnObject) &&
-            payload.selectReturnObject.length > 0
-          ) {
-            try {
-              bodyReponse = await response.json();
-              let returnedObject = bodyReponse;
-              for (const index of payload.selectReturnObject) {
-                returnedObject = returnedObject[index];
-              }
-              bodyReponse = JSON.stringify(returnedObject);
-            } catch (error) {
-              console.error(error);
-              bodyReponse = responseData;
-            }
-          } else bodyReponse = await response.text();
-          return true;
-        },
-        { timeout: payload.maxWait }
-      );
+      // Wait until bodyResponse has a value
+      while (!bodyResponse) {
+        await new Promise((resolve, _) => {
+          setTimeout(() => {
+            resolve();
+          }, 100);
+        });
+      }
     } else if (payload.returnType === "html") {
       await page.waitForSelector(payload.waitForSelector, {
         timeout: payload.maxWait,
@@ -123,12 +142,12 @@ exports.handler = async (event, _) => {
       if (payload.sleepTime) await page.waitForTimeout(payload.sleepTime);
 
       if (payload.selectBody) {
-        bodyReponse = await page.$eval(
+        bodyResponse = await page.$eval(
           payload.selectBody,
           (element) => element.innerHTML
         );
       } else {
-        bodyReponse = await page.evaluate(() => document.body.innerHTML);
+        bodyResponse = await page.evaluate(() => document.body.innerHTML);
       }
     }
   } catch (error) {
@@ -144,13 +163,14 @@ exports.handler = async (event, _) => {
     if (browser !== undefined) {
       await browser.close();
     }
+    clearTimeout(timer);
   }
   let contentType =
     payload.returnType === "json"
       ? "application/json"
       : "text/html; charset=utf-8";
   return {
-    body: bodyReponse,
+    body: bodyResponse,
     statusCode: 200,
     headers: { "Content-Type": contentType },
   };
